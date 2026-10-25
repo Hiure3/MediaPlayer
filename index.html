@@ -55,6 +55,7 @@
       padding: 8px;
       gap: 8px;
       overflow-y: auto;
+      min-height: 0;
     }
     .side-panel::-webkit-scrollbar { width: 6px; }
     .side-panel::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
@@ -67,7 +68,13 @@
       display: flex;
       flex-direction: column;
       gap: 6px;
+      min-height: 0;
     }
+    /* Distribui o espaço livre entre as seções (preenche toda a altura) */
+    .sec-spectrum { flex: 3 1 auto; }
+    .sec-volume   { flex: 1.5 1 auto; }
+    .sec-eq       { flex: 3 1 auto; }
+    .sec-rec      { flex: 1 1 auto; }
     .panel-title {
       font-weight: bold;
       color: #00e676;
@@ -85,7 +92,8 @@
     .meters-row {
       display: flex;
       gap: 6px;
-      height: 75px;
+      flex: 1;
+      min-height: 75px;
     }
     .vu-box {
       width: 45px;
@@ -132,9 +140,12 @@
       position: relative;
       overflow: hidden;
     }
+    .spec-canvas-wrap { flex: 1; position: relative; min-height: 0; }
     canvas#spectrumCanvas {
+      position: absolute;
+      top: 0; left: 0;
       width: 100%;
-      flex: 1;
+      height: 100%;
       display: block;
     }
     .freq-markers {
@@ -160,6 +171,8 @@
       color: #bbb;
     }
     .control-label span { color: #00e676; font-family: monospace; }
+    .sec-volume .control-row { flex: 1; justify-content: center; gap: 6px; }
+    .sec-volume .control-label { font-size: 11px; }
     input[type=range] {
       width: 100%;
       accent-color: #00e676;
@@ -173,24 +186,30 @@
       display: grid;
       grid-template-columns: repeat(3, 1fr);
       gap: 6px;
+      flex: 1;
+      min-height: 0;
     }
     .eq-slider-wrapper {
       display: flex;
       flex-direction: column;
       align-items: center;
       background: #111;
-      padding: 4px;
+      padding: 6px 4px;
       border-radius: 3px;
       border: 1px solid #222;
+      min-height: 0;
     }
-    .eq-slider-wrapper label { font-size: 9px; color: #aaa; margin-bottom: 2px; }
+    .eq-slider-wrapper label { font-size: 10px; color: #aaa; margin-bottom: 4px; }
     .eq-slider-wrapper input[type=range] {
       writing-mode: bt-lr;
       -webkit-appearance: slider-vertical;
       width: 8px;
-      height: 60px;
+      flex: 1;
+      min-height: 60px;
     }
-    .eq-val { font-size: 8px; color: #00e676; margin-top: 2px; font-family: monospace; }
+    .eq-val { font-size: 9px; color: #00e676; margin-top: 4px; font-family: monospace; }
+    .sec-rec .btn-action { flex: 1; min-height: 40px; font-size: 12px; }
+    .sec-rec #recStatus { margin-top: 0 !important; }
 
     /* Action Buttons */
     .btn-action {
@@ -268,7 +287,7 @@
     <!-- Side Panel -->
     <div class="side-panel">
       <!-- Section 1: VU & Spectrum -->
-      <div class="panel-section">
+      <div class="panel-section sec-spectrum">
         <div class="panel-title"><span>Áudio & Espectro (20Hz - 20kHz)</span></div>
         <div class="meters-row">
           <div class="vu-box">
@@ -279,7 +298,7 @@
             <div class="vu-label">L / R</div>
           </div>
           <div class="spectrum-box">
-            <canvas id="spectrumCanvas"></canvas>
+            <div class="spec-canvas-wrap"><canvas id="spectrumCanvas"></canvas></div>
             <div class="freq-markers">
               <span>20Hz</span>
               <span>100Hz</span>
@@ -292,20 +311,20 @@
       </div>
 
       <!-- Section 2: Master & Gain -->
-      <div class="panel-section">
+      <div class="panel-section sec-volume">
         <div class="panel-title">Volume Principal & Ganho</div>
         <div class="control-row">
           <div class="control-label">Volume: <span id="volVal">80%</span></div>
           <input type="range" id="volSlider" min="0" max="1" step="0.01" value="0.8">
         </div>
-        <div class="control-row" style="margin-top:4px;">
+        <div class="control-row">
           <div class="control-label">Ganho Boost: <span id="gainVal">0 dB</span></div>
           <input type="range" id="gainSlider" min="0" max="2" step="0.05" value="1">
         </div>
       </div>
 
       <!-- Section 3: Equalizer 3-Band -->
-      <div class="panel-section">
+      <div class="panel-section sec-eq">
         <div class="panel-title">Equalizador (20Hz - 20kHz)</div>
         <div class="eq-grid">
           <div class="eq-slider-wrapper">
@@ -327,7 +346,7 @@
       </div>
 
       <!-- Section 4: Export / Save Video -->
-      <div class="panel-section">
+      <div class="panel-section sec-rec">
         <div class="panel-title">Gravação & Exportação</div>
         <button id="recordBtn" class="btn-action">🔴 Gravar Vídeo c/ Ajustes</button>
         <div id="recStatus" style="font-size:9px; color:#888; text-align:center; margin-top:2px;">Pronto para exportar WebM</div>
@@ -434,6 +453,15 @@
       startVisualizer();
     }
 
+    function resizeSpectrum() {
+      const w = spectrumCanvas.clientWidth, h = spectrumCanvas.clientHeight;
+      if (w && h && (spectrumCanvas.width !== w || spectrumCanvas.height !== h)) {
+        spectrumCanvas.width = w;
+        spectrumCanvas.height = h;
+      }
+    }
+    new ResizeObserver(resizeSpectrum).observe(spectrumCanvas);
+
     function startVisualizer() {
       function draw() {
         requestAnimationFrame(draw);
@@ -475,8 +503,7 @@
         }
       }
       
-      spectrumCanvas.width = spectrumCanvas.offsetWidth || 140;
-      spectrumCanvas.height = spectrumCanvas.offsetHeight || 50;
+      resizeSpectrum();
       draw();
     }
 
