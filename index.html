@@ -125,7 +125,8 @@
     }
     .vu-fill {
       width: 100%;
-      height: 0%;
+      height: 100%;
+      clip-path: inset(100% 0 0 0);
       background: linear-gradient(to top, #00e676 0%, #00e676 70%, #ffeb3b 85%, #ff1744 100%);
     }
     .vu-label { font-size: 8px; color: #888; margin-top: 2px; }
@@ -157,6 +158,41 @@
       background: #050505;
       border-top: 1px solid #1f1f1f;
     }
+
+    /* Leitura numérica de dB */
+    .db-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; }
+    .db-cell {
+      background: #0a0a0a;
+      border: 1px solid #282828;
+      border-radius: 3px;
+      padding: 3px 2px;
+      text-align: center;
+      font-family: Consolas, monospace;
+      font-size: 12px;
+      color: #00e676;
+      white-space: nowrap;
+    }
+    .db-cell small { display: block; font-family: 'Segoe UI', sans-serif; font-size: 8px; color: #777; letter-spacing: 0.5px; }
+    .db-cell.hot { color: #ffeb3b; }
+    .db-cell.clip { color: #ff1744; border-color: #ff1744; }
+    #dbCellPeak { cursor: pointer; }
+
+    /* Abas de predefinições do equalizador */
+    .preset-tabs { display: flex; gap: 3px; }
+    .preset-tab {
+      flex: 1;
+      padding: 5px 2px;
+      font-size: 10px;
+      background: #111;
+      border: 1px solid #222;
+      border-radius: 3px;
+      color: #999;
+      text-align: center;
+    }
+    .preset-tab:hover { background: #1a1a1a; border-color: #444; color: #ddd; }
+    .preset-tab.active { background: #0f2a1c; border-color: #00e676; color: #00e676; font-weight: bold; }
+    .preset-hint { font-size: 9px; color: #777; text-align: center; min-height: 11px; }
+    .mini-btn { padding: 1px 6px; font-size: 9px; background: #1c1c1c; color: #aaa; }
 
     /* Controls & Sliders */
     .control-row {
@@ -308,6 +344,11 @@
             </div>
           </div>
         </div>
+        <div class="db-row">
+          <div class="db-cell" id="dbCellL"><small>ESQ (L)</small><span id="dbL">-∞</span> dB</div>
+          <div class="db-cell" id="dbCellR"><small>DIR (R)</small><span id="dbR">-∞</span> dB</div>
+          <div class="db-cell" id="dbCellPeak" title="Clique para zerar o pico"><small>PICO</small><span id="dbPeak">-∞</span> dB</div>
+        </div>
       </div>
 
       <!-- Section 2: Master & Gain -->
@@ -325,7 +366,14 @@
 
       <!-- Section 3: Equalizer 3-Band -->
       <div class="panel-section sec-eq">
-        <div class="panel-title">Equalizador (20Hz - 20kHz)</div>
+        <div class="panel-title"><span>Equalizador (20Hz - 20kHz)</span><button id="eqReset" class="mini-btn" title="Zerar equalizador">Zerar</button></div>
+        <div class="preset-tabs" id="presetTabs">
+          <button class="preset-tab active" data-preset="manual">Manual</button>
+          <button class="preset-tab" data-preset="music">🎵 Música</button>
+          <button class="preset-tab" data-preset="voice">🎤 Voz</button>
+          <button class="preset-tab" data-preset="choir">👥 Coral</button>
+        </div>
+        <div class="preset-hint" id="presetHint">Ajuste os controles livremente</div>
         <div class="eq-grid">
           <div class="eq-slider-wrapper">
             <label>Sub/Graves</label>
@@ -432,10 +480,17 @@
       analyserR = audioCtx.createAnalyser();
       analyserSpec = audioCtx.createAnalyser();
 
-      analyserL.fftSize = 256;
-      analyserR.fftSize = 256;
+      analyserL.fftSize = 1024;
+      analyserR.fftSize = 1024;
       analyserSpec.fftSize = 512;
       analyserSpec.smoothingTimeConstant = 0.85;
+
+      // aplica os valores atuais dos controles (inclui predefinições escolhidas antes de abrir a mídia)
+      masterGain.gain.value = parseFloat(volSlider.value);
+      gainNode.gain.value = parseFloat(gainSlider.value);
+      bqLow.gain.value = parseFloat(eqLow.value);
+      bqMid.gain.value = parseFloat(eqMid.value);
+      bqHigh.gain.value = parseFloat(eqHigh.value);
 
       source.connect(bqLow);
       bqLow.connect(bqMid);
@@ -462,21 +517,74 @@
     }
     new ResizeObserver(resizeSpectrum).observe(spectrumCanvas);
 
+    // ---------- Medidor de nível em dBFS (0 dB = máximo digital) ----------
+    const dbL = document.getElementById('dbL');
+    const dbR = document.getElementById('dbR');
+    const dbPeak = document.getElementById('dbPeak');
+    const dbCellL = document.getElementById('dbCellL');
+    const dbCellR = document.getElementById('dbCellR');
+    const dbCellPeak = document.getElementById('dbCellPeak');
+    const DB_FLOOR = -90;
+    let bufL, bufR;
+    let lvlL = DB_FLOOR, lvlR = DB_FLOOR, peakHold = DB_FLOOR, peakStamp = 0, frame = 0;
+
+    function peakDb(an, buf) {
+      an.getFloatTimeDomainData(buf);
+      let peak = 0;
+      for (let i = 0; i < buf.length; i++) {
+        const a = Math.abs(buf[i]);
+        if (a > peak) peak = a;
+      }
+      return peak > 3e-5 ? Math.max(DB_FLOOR, 20 * Math.log10(peak)) : DB_FLOOR;
+    }
+    function fmtDb(v) { return v <= DB_FLOOR ? '-∞' : v.toFixed(1); }
+    function levelClass(cell, v) {
+      cell.classList.toggle('clip', v >= -0.5);
+      cell.classList.toggle('hot', v < -0.5 && v >= -6);
+    }
+
+    function updateLevels() {
+      if (!bufL) {
+        bufL = new Float32Array(analyserL.fftSize);
+        bufR = new Float32Array(analyserR.fftSize);
+      }
+      const nowL = peakDb(analyserL, bufL);
+      const nowR = peakDb(analyserR, bufR);
+
+      // ataque instantâneo, queda suave
+      lvlL = nowL > lvlL ? nowL : Math.max(DB_FLOOR, lvlL - 0.6);
+      lvlR = nowR > lvlR ? nowR : Math.max(DB_FLOOR, lvlR - 0.6);
+
+      // pico retido por 2 s, depois cai lentamente
+      const cur = Math.max(nowL, nowR);
+      const now = performance.now();
+      if (cur >= peakHold) { peakHold = cur; peakStamp = now; }
+      else if (now - peakStamp > 2000) peakHold = Math.max(cur, peakHold - 0.2);
+
+      // barras VU (escala de -60 dB a 0 dB)
+      const pctL = Math.min(100, Math.max(0, (lvlL + 60) / 60 * 100));
+      const pctR = Math.min(100, Math.max(0, (lvlR + 60) / 60 * 100));
+      vuLeft.style.clipPath = 'inset(' + (100 - pctL) + '% 0 0 0)';
+      vuRight.style.clipPath = 'inset(' + (100 - pctR) + '% 0 0 0)';
+
+      // texto atualizado ~20x por segundo para ficar legível
+      if (++frame % 3 === 0) {
+        dbL.textContent = fmtDb(lvlL);
+        dbR.textContent = fmtDb(lvlR);
+        dbPeak.textContent = fmtDb(peakHold);
+        levelClass(dbCellL, lvlL);
+        levelClass(dbCellR, lvlR);
+        levelClass(dbCellPeak, peakHold);
+      }
+    }
+    dbCellPeak.onclick = () => { peakHold = DB_FLOOR; peakStamp = 0; };
+
     function startVisualizer() {
       function draw() {
         requestAnimationFrame(draw);
         if (!analyserL || !analyserR || !analyserSpec) return;
 
-        const dataL = new Uint8Array(analyserL.frequencyBinCount);
-        const dataR = new Uint8Array(analyserR.frequencyBinCount);
-        analyserL.getByteFrequencyData(dataL);
-        analyserR.getByteFrequencyData(dataR);
-
-        const avgL = dataL.reduce((a,b)=>a+b,0) / dataL.length;
-        const avgR = dataR.reduce((a,b)=>a+b,0) / dataR.length;
-
-        vuLeft.style.height = Math.min(100, (avgL / 128) * 100) + '%';
-        vuRight.style.height = Math.min(100, (avgR / 128) * 100) + '%';
+        updateLevels();
 
         specCtx.fillStyle = '#0a0a0a';
         specCtx.fillRect(0, 0, spectrumCanvas.width, spectrumCanvas.height);
@@ -568,6 +676,43 @@
       const secs = Math.floor(s % 60);
       return `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
     }
+
+    // ---------- Predefinições do equalizador (graves / médios / agudos em dB) ----------
+    const PRESETS = {
+      music: { low: 3,  mid: -1, high: 2.5, hint: 'Música: graves encorpados e agudos brilhantes' },
+      voice: { low: -5, mid: 4,  high: 1.5, hint: 'Voz: corta graves e realça a clareza da fala' },
+      choir: { low: 2,  mid: 2,  high: 3,   hint: 'Coral: calor nos graves e mais brilho nas vozes' }
+    };
+    const presetTabs = document.querySelectorAll('.preset-tab');
+    const presetHint = document.getElementById('presetHint');
+    let applyingPreset = false;
+
+    function setActiveTab(name) {
+      presetTabs.forEach(t => t.classList.toggle('active', t.dataset.preset === name));
+      presetHint.textContent = PRESETS[name] ? PRESETS[name].hint : 'Ajuste os controles livremente';
+    }
+    function setSlider(el, v) {
+      el.value = v;
+      el.dispatchEvent(new Event('input'));
+    }
+    function applyEq(low, mid, high) {
+      applyingPreset = true;
+      setSlider(eqLow, low);
+      setSlider(eqMid, mid);
+      setSlider(eqHigh, high);
+      applyingPreset = false;
+    }
+    presetTabs.forEach(tab => {
+      tab.onclick = () => {
+        const name = tab.dataset.preset;
+        if (PRESETS[name]) applyEq(PRESETS[name].low, PRESETS[name].mid, PRESETS[name].high);
+        setActiveTab(name);
+      };
+    });
+    [eqLow, eqMid, eqHigh].forEach(el => {
+      el.addEventListener('input', () => { if (!applyingPreset) setActiveTab('manual'); });
+    });
+    document.getElementById('eqReset').onclick = () => { applyEq(0, 0, 0); setActiveTab('manual'); };
 
     recordBtn.onclick = () => {
       if (!media.src) {
