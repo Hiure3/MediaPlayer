@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>MPC-HC Audio/Video Player</title>
+  <title>MPC-HC Audio/Video Player & Studio</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; user-select: none; }
     body {
@@ -16,17 +16,19 @@
       height: 100vh;
       overflow: hidden;
     }
+    /* Menu Bar */
     .menu-bar {
       background: #1e1e1e;
       border-bottom: 1px solid #2a2a2a;
       display: flex;
-      padding: 2px 8px;
+      padding: 3px 8px;
       gap: 15px;
       font-size: 11px;
     }
-    .menu-item { cursor: pointer; padding: 2px 5px; color: #ccc; }
+    .menu-item { cursor: pointer; padding: 2px 6px; color: #ccc; }
     .menu-item:hover { background: #333; color: #fff; border-radius: 2px; }
 
+    /* Main Container */
     .main-container {
       display: flex;
       flex: 1;
@@ -43,42 +45,73 @@
     }
     video { width: 100%; height: 100%; object-fit: contain; }
 
+    /* Side Panel - Optimized Layout */
     .side-panel {
-      width: 150px;
+      width: 260px;
       background: #181818;
       border-left: 1px solid #2d2d2d;
       display: flex;
       flex-direction: column;
-      padding: 10px;
-      gap: 10px;
+      padding: 8px;
+      gap: 8px;
+      overflow-y: auto;
+    }
+    .side-panel::-webkit-scrollbar { width: 6px; }
+    .side-panel::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+
+    .panel-section {
+      background: #151515;
+      border: 1px solid #2a2a2a;
+      border-radius: 4px;
+      padding: 6px 8px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
     }
     .panel-title {
       font-weight: bold;
-      color: #888;
+      color: #00e676;
       font-size: 10px;
       text-transform: uppercase;
       letter-spacing: 0.5px;
-      text-align: center;
-      border-bottom: 1px solid #2a2a2a;
-      padding-bottom: 4px;
+      border-bottom: 1px solid #222;
+      padding-bottom: 3px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
     }
-    .vu-meter-container {
+
+    /* VU Meters & Spectrum Row */
+    .meters-row {
+      display: flex;
+      gap: 6px;
+      height: 75px;
+    }
+    .vu-box {
+      width: 45px;
+      background: #0a0a0a;
+      border: 1px solid #282828;
+      border-radius: 3px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 4px 0;
+    }
+    .vu-channels {
       display: flex;
       flex: 1;
+      width: 100%;
       justify-content: space-around;
       align-items: flex-end;
-      background: #0a0a0a;
-      border: 1px solid #333;
-      padding: 8px 4px;
-      border-radius: 3px;
+      padding: 0 4px;
     }
     .vu-channel {
-      width: 22px;
+      width: 12px;
       height: 100%;
       background: #151515;
       display: flex;
       flex-direction: column-reverse;
-      border-radius: 2px;
+      border-radius: 1px;
       overflow: hidden;
       border: 1px solid #222;
     }
@@ -86,22 +119,109 @@
       width: 100%;
       height: 0%;
       background: linear-gradient(to top, #00e676 0%, #00e676 70%, #ffeb3b 85%, #ff1744 100%);
-      transition: height 0.05s ease-out;
     }
-    .vu-label {
-      text-align: center;
-      font-size: 9px;
-      color: #666;
-      margin-top: 4px;
-    }
-    .side-control {
+    .vu-label { font-size: 8px; color: #888; margin-top: 2px; }
+
+    .spectrum-box {
+      flex: 1;
+      background: #0a0a0a;
+      border: 1px solid #282828;
+      border-radius: 3px;
       display: flex;
       flex-direction: column;
-      gap: 4px;
+      position: relative;
+      overflow: hidden;
     }
-    .side-control label { font-size: 10px; color: #aaa; }
-    input[type=range] { width: 100%; accent-color: #00e676; }
+    canvas#spectrumCanvas {
+      width: 100%;
+      flex: 1;
+      display: block;
+    }
+    .freq-markers {
+      display: flex;
+      justify-content: space-between;
+      padding: 0 4px;
+      font-size: 8px;
+      color: #777;
+      background: #050505;
+      border-top: 1px solid #1f1f1f;
+    }
 
+    /* Controls & Sliders */
+    .control-row {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+    .control-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #bbb;
+    }
+    .control-label span { color: #00e676; font-family: monospace; }
+    input[type=range] {
+      width: 100%;
+      accent-color: #00e676;
+      height: 4px;
+      background: #333;
+      border-radius: 2px;
+      outline: none;
+    }
+
+    .eq-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+    }
+    .eq-slider-wrapper {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      background: #111;
+      padding: 4px;
+      border-radius: 3px;
+      border: 1px solid #222;
+    }
+    .eq-slider-wrapper label { font-size: 9px; color: #aaa; margin-bottom: 2px; }
+    .eq-slider-wrapper input[type=range] {
+      writing-mode: bt-lr;
+      -webkit-appearance: slider-vertical;
+      width: 8px;
+      height: 60px;
+    }
+    .eq-val { font-size: 8px; color: #00e676; margin-top: 2px; font-family: monospace; }
+
+    /* Action Buttons */
+    .btn-action {
+      background: #222;
+      border: 1px solid #3a3a3a;
+      color: #e0e0e0;
+      padding: 6px 10px;
+      border-radius: 3px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      transition: background 0.15s;
+    }
+    .btn-action:hover { background: #333; border-color: #00e676; color: #fff; }
+    .btn-action.recording {
+      background: #b71c1c;
+      border-color: #ff5252;
+      color: #fff;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse {
+      0% { opacity: 1; }
+      50% { opacity: 0.6; }
+      100% { opacity: 1; }
+    }
+
+    /* Controls Bar */
     .controls-bar {
       background: #181818;
       border-top: 1px solid #2d2d2d;
@@ -136,30 +256,81 @@
   <div class="menu-bar">
     <div class="menu-item" onclick="document.getElementById('fileInput').click()">Arquivo</div>
     <div class="menu-item">Exibir</div>
-    <div class="menu-item">Navegação</div>
-    <div class="menu-item">Favoritos</div>
+    <div class="menu-item">Áudio & Equalização</div>
     <div class="menu-item">Ajuda</div>
   </div>
 
   <div class="main-container">
     <div class="video-container">
-      <video id="mediaPlayer" crossorigin="anonymous"></video>
+      <video id="mediaPlayer" crossorigin="anonymous" playsinline></video>
     </div>
+
+    <!-- Side Panel -->
     <div class="side-panel">
-      <div class="panel-title">Nível de Áudio</div>
-      <div class="vu-meter-container">
-        <div style="display:flex; flex-direction:column; align-items:center; height:100%;">
-          <div class="vu-channel"><div id="vuLeft" class="vu-fill"></div></div>
-          <div class="vu-label">L</div>
-        </div>
-        <div style="display:flex; flex-direction:column; align-items:center; height:100%;">
-          <div class="vu-channel"><div id="vuRight" class="vu-fill"></div></div>
-          <div class="vu-label">R</div>
+      <!-- Section 1: VU & Spectrum -->
+      <div class="panel-section">
+        <div class="panel-title"><span>Áudio & Espectro (20Hz - 20kHz)</span></div>
+        <div class="meters-row">
+          <div class="vu-box">
+            <div class="vu-channels">
+              <div class="vu-channel"><div id="vuLeft" class="vu-fill"></div></div>
+              <div class="vu-channel"><div id="vuRight" class="vu-fill"></div></div>
+            </div>
+            <div class="vu-label">L / R</div>
+          </div>
+          <div class="spectrum-box">
+            <canvas id="spectrumCanvas"></canvas>
+            <div class="freq-markers">
+              <span>20Hz</span>
+              <span>100Hz</span>
+              <span>1kHz</span>
+              <span>10kHz</span>
+              <span>20k</span>
+            </div>
+          </div>
         </div>
       </div>
-      <div class="side-control">
-        <label for="volSlider">Volume Principal</label>
-        <input type="range" id="volSlider" min="0" max="1" step="0.01" value="0.8">
+
+      <!-- Section 2: Master & Gain -->
+      <div class="panel-section">
+        <div class="panel-title">Volume Principal & Ganho</div>
+        <div class="control-row">
+          <div class="control-label">Volume: <span id="volVal">80%</span></div>
+          <input type="range" id="volSlider" min="0" max="1" step="0.01" value="0.8">
+        </div>
+        <div class="control-row" style="margin-top:4px;">
+          <div class="control-label">Ganho Boost: <span id="gainVal">0 dB</span></div>
+          <input type="range" id="gainSlider" min="0" max="2" step="0.05" value="1">
+        </div>
+      </div>
+
+      <!-- Section 3: Equalizer 3-Band -->
+      <div class="panel-section">
+        <div class="panel-title">Equalizador (20Hz - 20kHz)</div>
+        <div class="eq-grid">
+          <div class="eq-slider-wrapper">
+            <label>Sub/Graves</label>
+            <input type="range" id="eqLow" min="-20" max="20" step="0.5" value="0">
+            <span id="lowVal" class="eq-val">0 dB</span>
+          </div>
+          <div class="eq-slider-wrapper">
+            <label>Médios</label>
+            <input type="range" id="eqMid" min="-20" max="20" step="0.5" value="0">
+            <span id="midVal" class="eq-val">0 dB</span>
+          </div>
+          <div class="eq-slider-wrapper">
+            <label>Agudos</label>
+            <input type="range" id="eqHigh" min="-20" max="20" step="0.5" value="0">
+            <span id="highVal" class="eq-val">0 dB</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Section 4: Export / Save Video -->
+      <div class="panel-section">
+        <div class="panel-title">Gravação & Exportação</div>
+        <button id="recordBtn" class="btn-action">🔴 Gravar Vídeo c/ Ajustes</button>
+        <div id="recStatus" style="font-size:9px; color:#888; text-align:center; margin-top:2px;">Pronto para exportar WebM</div>
       </div>
     </div>
   </div>
@@ -175,7 +346,7 @@
         <button id="playBtn">▶ Play</button>
         <button id="pauseBtn">⏸ Pausa</button>
         <button id="stopBtn">⏹ Parar</button>
-        <button onclick="document.getElementById('fileInput').click()">📂 Abrir Arquivo</button>
+        <button onclick="document.getElementById('fileInput').click()">📂 Abrir Mídia</button>
         <input type="file" id="fileInput" class="file-input" accept="audio/*,video/*">
       </div>
     </div>
@@ -188,47 +359,125 @@
     const stopBtn = document.getElementById('stopBtn');
     const fileInput = document.getElementById('fileInput');
     const volSlider = document.getElementById('volSlider');
+    const volVal = document.getElementById('volVal');
+    const gainSlider = document.getElementById('gainSlider');
+    const gainVal = document.getElementById('gainVal');
     const seekBar = document.getElementById('seekBar');
     const currentTimeEl = document.getElementById('currentTime');
     const durationTimeEl = document.getElementById('durationTime');
+
     const vuLeft = document.getElementById('vuLeft');
     const vuRight = document.getElementById('vuRight');
+    const spectrumCanvas = document.getElementById('spectrumCanvas');
+    const specCtx = spectrumCanvas.getContext('2d');
 
-    let audioCtx, source, splitter, analyserL, analyserR;
+    const eqLow = document.getElementById('eqLow');
+    const eqMid = document.getElementById('eqMid');
+    const eqHigh = document.getElementById('eqHigh');
+    const lowVal = document.getElementById('lowVal');
+    const midVal = document.getElementById('midVal');
+    const highVal = document.getElementById('highVal');
+
+    const recordBtn = document.getElementById('recordBtn');
+    const recStatus = document.getElementById('recStatus');
+
+    let audioCtx, source, splitter, analyserL, analyserR, analyserSpec;
+    let bqLow, bqMid, bqHigh, gainNode, masterGain;
+    let mediaRecorder, recordedChunks = [];
+    let isRecording = false;
 
     function initAudio() {
       if (audioCtx) return;
       audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      
       source = audioCtx.createMediaElementSource(media);
+      
+      bqLow = audioCtx.createBiquadFilter();
+      bqLow.type = 'lowshelf';
+      bqLow.frequency.value = 250;
+
+      bqMid = audioCtx.createBiquadFilter();
+      bqMid.type = 'peaking';
+      bqMid.frequency.value = 1500;
+      bqMid.Q.value = 1;
+
+      bqHigh = audioCtx.createBiquadFilter();
+      bqHigh.type = 'highshelf';
+      bqHigh.frequency.value = 6000;
+
+      gainNode = audioCtx.createGain();
+      masterGain = audioCtx.createGain();
+
       splitter = audioCtx.createChannelSplitter(2);
       analyserL = audioCtx.createAnalyser();
       analyserR = audioCtx.createAnalyser();
+      analyserSpec = audioCtx.createAnalyser();
+
       analyserL.fftSize = 256;
       analyserR.fftSize = 256;
+      analyserSpec.fftSize = 512;
+      analyserSpec.smoothingTimeConstant = 0.85;
 
-      source.connect(splitter);
+      source.connect(bqLow);
+      bqLow.connect(bqMid);
+      bqMid.connect(bqHigh);
+      bqHigh.connect(gainNode);
+      gainNode.connect(masterGain);
+      
+      masterGain.connect(audioCtx.destination);
+
+      masterGain.connect(splitter);
       splitter.connect(analyserL, 0);
       splitter.connect(analyserR, 1);
-      source.connect(audioCtx.destination);
+      masterGain.connect(analyserSpec);
 
-      updateVUMeter();
+      startVisualizer();
     }
 
-    function updateVUMeter() {
-      if (!analyserL || !analyserR) return;
-      const dataL = new Uint8Array(analyserL.frequencyBinCount);
-      const dataR = new Uint8Array(analyserR.frequencyBinCount);
+    function startVisualizer() {
+      function draw() {
+        requestAnimationFrame(draw);
+        if (!analyserL || !analyserR || !analyserSpec) return;
 
-      analyserL.getByteFrequencyData(dataL);
-      analyserR.getByteFrequencyData(dataR);
+        const dataL = new Uint8Array(analyserL.frequencyBinCount);
+        const dataR = new Uint8Array(analyserR.frequencyBinCount);
+        analyserL.getByteFrequencyData(dataL);
+        analyserR.getByteFrequencyData(dataR);
 
-      const avgL = dataL.reduce((a, b) => a + b, 0) / dataL.length;
-      const avgR = dataR.reduce((a, b) => a + b, 0) / dataR.length;
+        const avgL = dataL.reduce((a,b)=>a+b,0) / dataL.length;
+        const avgR = dataR.reduce((a,b)=>a+b,0) / dataR.length;
 
-      vuLeft.style.height = Math.min(100, (avgL / 128) * 100) + '%';
-      vuRight.style.height = Math.min(100, (avgR / 128) * 100) + '%';
+        vuLeft.style.height = Math.min(100, (avgL / 128) * 100) + '%';
+        vuRight.style.height = Math.min(100, (avgR / 128) * 100) + '%';
 
-      requestAnimationFrame(updateVUMeter);
+        specCtx.fillStyle = '#0a0a0a';
+        specCtx.fillRect(0, 0, spectrumCanvas.width, spectrumCanvas.height);
+
+        const specData = new Uint8Array(analyserSpec.frequencyBinCount);
+        analyserSpec.getByteFrequencyData(specData);
+
+        const barWidth = (spectrumCanvas.width / specData.length) * 2.2;
+        let x = 0;
+
+        for (let i = 0; i < specData.length; i++) {
+          const barHeight = (specData[i] / 255) * spectrumCanvas.height;
+          
+          const gradient = specCtx.createLinearGradient(0, spectrumCanvas.height, 0, 0);
+          gradient.addColorStop(0, '#00e676');
+          gradient.addColorStop(0.7, '#ffeb3b');
+          gradient.addColorStop(1, '#ff1744');
+
+          specCtx.fillStyle = gradient;
+          specCtx.fillRect(x, spectrumCanvas.height - barHeight, barWidth, barHeight);
+
+          x += barWidth + 1;
+          if (x > spectrumCanvas.width) break;
+        }
+      }
+      
+      spectrumCanvas.width = spectrumCanvas.offsetWidth || 140;
+      spectrumCanvas.height = spectrumCanvas.offsetHeight || 50;
+      draw();
     }
 
     fileInput.addEventListener('change', (e) => {
@@ -245,7 +494,33 @@
     pauseBtn.onclick = () => media.pause();
     stopBtn.onclick = () => { media.pause(); media.currentTime = 0; };
 
-    volSlider.oninput = (e) => media.volume = e.target.value;
+    volSlider.oninput = (e) => {
+      const val = parseFloat(e.target.value);
+      if (masterGain) masterGain.gain.value = val;
+      volVal.textContent = Math.round(val * 100) + '%';
+    };
+
+    gainSlider.oninput = (e) => {
+      const val = parseFloat(e.target.value);
+      if (gainNode) gainNode.gain.value = val;
+      gainVal.textContent = Math.round((val - 1) * 10) + ' dB';
+    };
+
+    eqLow.oninput = (e) => {
+      const val = parseFloat(e.target.value);
+      if (bqLow) bqLow.gain.value = val;
+      lowVal.textContent = val + ' dB';
+    };
+    eqMid.oninput = (e) => {
+      const val = parseFloat(e.target.value);
+      if (bqMid) bqMid.gain.value = val;
+      midVal.textContent = val + ' dB';
+    };
+    eqHigh.oninput = (e) => {
+      const val = parseFloat(e.target.value);
+      if (bqHigh) bqHigh.gain.value = val;
+      highVal.textContent = val + ' dB';
+    };
 
     media.ontimeupdate = () => {
       if (media.duration) {
@@ -265,6 +540,84 @@
       const mins = Math.floor(s / 60);
       const secs = Math.floor(s % 60);
       return `${mins.toString().padStart(2,'0')}:${secs.toString().padStart(2,'0')}`;
+    }
+
+    recordBtn.onclick = () => {
+      if (!media.src) {
+        alert('Abra um arquivo de vídeo ou áudio primeiro!');
+        return;
+      }
+
+      if (!isRecording) {
+        startRecording();
+      } else {
+        stopRecording();
+      }
+    };
+
+    function startRecording() {
+      initAudio();
+      recordedChunks = [];
+
+      const dest = audioCtx.createMediaStreamDestination();
+      masterGain.connect(dest);
+
+      let combinedStream;
+      if (media.captureStream) {
+        const vidStream = media.captureStream();
+        combinedStream = new MediaStream([
+          ...vidStream.getVideoTracks(),
+          ...dest.stream.getAudioTracks()
+        ]);
+      } else {
+        combinedStream = dest.stream;
+      }
+
+      try {
+        mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm;codecs=vp9,opus' });
+      } catch (e) {
+        try {
+          mediaRecorder = new MediaRecorder(combinedStream, { mimeType: 'video/webm' });
+        } catch (err) {
+          mediaRecorder = new MediaRecorder(combinedStream);
+        }
+      }
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = 'mpc-ajustado-' + Date.now() + '.webm';
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => {
+          document.body.removeChild(a);
+          window.URL.revokeObjectURL(url);
+        }, 100);
+        recStatus.textContent = 'Arquivo salvo com sucesso!';
+      };
+
+      mediaRecorder.start();
+      isRecording = true;
+      recordBtn.textContent = '⏹ Parar e Salvar Vídeo';
+      recordBtn.classList.add('recording');
+      recStatus.textContent = 'Gravando áudio/vídeo com equalização...';
+      if (media.paused) media.play();
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && isRecording) {
+        mediaRecorder.stop();
+        isRecording = false;
+        recordBtn.textContent = '🔴 Gravar Vídeo c/ Ajustes';
+        recordBtn.classList.remove('recording');
+      }
     }
   </script>
 </body>
